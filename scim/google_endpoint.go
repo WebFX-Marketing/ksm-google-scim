@@ -128,43 +128,78 @@ func (ge *googleEndpoint) Populate() (err error) {
 	var users *admin.Users
 	var groups *admin.Groups
 	for entry := range scimGroups {
-		var address *mail.Address
-		if address, err = mail.ParseAddress(entry); err == nil {
-			var gl = directory.Groups.List().Customer("my_customer").Query(fmt.Sprintf("email=%s", address.Address))
+		if strings.HasSuffix(entry, "*") && !strings.Contains(entry, "@") {
+			// Prefix name wildcard (e.g., "keeper-scim-*")
+			var prefix = strings.TrimSuffix(entry, "*")
+			var gl = directory.Groups.List().Customer("my_customer").Query(fmt.Sprintf("name:'%s'", prefix))
 			if groups, err = gl.Do(); err == nil && len(groups.Groups) > 0 {
 				for _, g := range groups.Groups {
-					ge.DebugLogger()(fmt.Sprintf("Found Google group \"%s\" for email \"%s\"", g.Name, g.Email))
+					ge.DebugLogger()(fmt.Sprintf("Found Google group \"%s\" matching prefix \"%s\"", g.Name, prefix))
 					ge.groups[g.Id] = &Group{
 						Id:   g.Id,
 						Name: g.Name,
 					}
 				}
 			} else {
-				var ul = directory.Users.List().Customer("my_customer").Query(fmt.Sprintf("email=%s", address.Address))
-				if users, err = ul.Do(); err == nil && len(users.Users) > 0 {
-					for _, u := range users.Users {
-						ge.DebugLogger()(fmt.Sprintf("Found Google user for email \"%s\"", u.PrimaryEmail))
-						var su = parseGoogleUser(u)
-						ge.users[su.Id] = su
+				ge.DebugLogger()(fmt.Sprintf("No groups found matching prefix wildcard \"%s\"", entry))
+				ge.loadErrors = true
+			}
+		} else if strings.HasPrefix(entry, "*@") {
+			// Domain email wildcard (e.g., "*@webfx.com")
+			var domain = strings.TrimPrefix(entry, "*@")
+			var gl = directory.Groups.List().Customer("my_customer").Query(fmt.Sprintf("email:'%s'", domain))
+			if groups, err = gl.Do(); err == nil && len(groups.Groups) > 0 {
+				for _, g := range groups.Groups {
+					ge.DebugLogger()(fmt.Sprintf("Found Google group \"%s\" matching domain \"%s\"", g.Name, domain))
+					ge.groups[g.Id] = &Group{
+						Id:   g.Id,
+						Name: g.Name,
 					}
-				} else {
-					ge.DebugLogger()(fmt.Sprintf("An email \"%s\" could not be resolved as either Google User or Group", address.Address))
-					ge.loadErrors = true
 				}
+			} else {
+				ge.DebugLogger()(fmt.Sprintf("No groups found matching domain wildcard \"%s\"", entry))
+				ge.loadErrors = true
 			}
 		} else {
-			var gl = directory.Groups.List().Customer("my_customer").Query(fmt.Sprintf("name='%s'", entry))
-			if groups, err = gl.Do(); err == nil && len(groups.Groups) > 0 {
-				for _, g := range groups.Groups {
-					ge.DebugLogger()(fmt.Sprintf("Found Google group \"%s\" by name", g.Name))
-					ge.groups[g.Id] = &Group{
-						Id:   g.Id,
-						Name: g.Name,
+			// Exact match (Email or Name)
+			var address *mail.Address
+			if address, err = mail.ParseAddress(entry); err == nil {
+				var gl = directory.Groups.List().Customer("my_customer").Query(fmt.Sprintf("email=%s", address.Address))
+				if groups, err = gl.Do(); err == nil && len(groups.Groups) > 0 {
+					for _, g := range groups.Groups {
+						ge.DebugLogger()(fmt.Sprintf("Found Google group \"%s\" for email \"%s\"", g.Name, g.Email))
+						ge.groups[g.Id] = &Group{
+							Id:   g.Id,
+							Name: g.Name,
+						}
+					}
+				} else {
+					var ul = directory.Users.List().Customer("my_customer").Query(fmt.Sprintf("email=%s", address.Address))
+					if users, err = ul.Do(); err == nil && len(users.Users) > 0 {
+						for _, u := range users.Users {
+							ge.DebugLogger()(fmt.Sprintf("Found Google user for email \"%s\"", u.PrimaryEmail))
+							var su = parseGoogleUser(u)
+							ge.users[su.Id] = su
+						}
+					} else {
+						ge.DebugLogger()(fmt.Sprintf("An email \"%s\" could not be resolved as either Google User or Group", address.Address))
+						ge.loadErrors = true
 					}
 				}
 			} else {
-				ge.DebugLogger()(fmt.Sprintf("A name \"%s\" could not be resolved to Google Group. Names are case sensitive", entry))
-				ge.loadErrors = true
+				var gl = directory.Groups.List().Customer("my_customer").Query(fmt.Sprintf("name='%s'", entry))
+				if groups, err = gl.Do(); err == nil && len(groups.Groups) > 0 {
+					for _, g := range groups.Groups {
+						ge.DebugLogger()(fmt.Sprintf("Found Google group \"%s\" by name", g.Name))
+						ge.groups[g.Id] = &Group{
+							Id:   g.Id,
+							Name: g.Name,
+						}
+					}
+				} else {
+					ge.DebugLogger()(fmt.Sprintf("A name \"%s\" could not be resolved to Google Group. Names are case sensitive", entry))
+					ge.loadErrors = true
+				}
 			}
 		}
 	}

@@ -30,7 +30,12 @@ Read this document: [Google Workspace User and Group Provisioning with Cloud Fun
       "scimUrl": "https://keepersecurity.com/api/rest/scim/v2/...",
       "scimToken": "your-scim-token",
       "googleAdminAccount": "admin@yourdomain.com",
-      "scimGroups": ["Keeper-SCIM-Users"],
+      "scimGroups": [
+          "keeper-scim-*",        // Matches all groups starting with "keeper-scim-"
+          "*@keeper.webfx.com",   // Matches all groups on the keeper.webfx.com domain
+          "exact-group-name",     // Matches exact group display name
+          "group@webfx.com"       // Matches exact group email address
+      ],
       "googleCredentials": {
          // Full Google Service Account JSON content here
       }
