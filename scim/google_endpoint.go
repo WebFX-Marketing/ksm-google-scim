@@ -132,8 +132,12 @@ func (ge *googleEndpoint) Populate() (err error) {
 			// Prefix name wildcard (e.g., "keeper-scim-*")
 			var foundAny = false
 
+			// Extract the prefix by removing the asterisk
+			var prefix = strings.TrimSuffix(entry, "*")
+
 			// 1. Try email prefix first (operator: ":")
-			var emailQuery = fmt.Sprintf("email:'%s'", entry)
+			// Google Directory API syntax requires NO quotes and NO asterisk for prefix searches
+			var emailQuery = fmt.Sprintf("email:%s*", prefix)
 			ge.DebugLogger()(fmt.Sprintf("Sending Google API Query: %s", emailQuery))
 
 			var el = directory.Groups.List().Customer("my_customer").Query(emailQuery)
@@ -151,7 +155,7 @@ func (ge *googleEndpoint) Populate() (err error) {
 			}
 
 			// 2. Try name prefix (operator: ":")
-			var nameQuery = fmt.Sprintf("name:'%s'", entry)
+			var nameQuery = fmt.Sprintf("name:%s*", prefix)
 			ge.DebugLogger()(fmt.Sprintf("Sending Google API Query: %s", nameQuery))
 
 			var nl = directory.Groups.List().Customer("my_customer").Query(nameQuery)
