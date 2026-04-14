@@ -128,27 +128,47 @@ func (ge *googleEndpoint) Populate() (err error) {
 	var users *admin.Users
 	var groups *admin.Groups
 	for entry := range scimGroups {
-		if strings.HasSuffix(entry, "*") && !strings.Contains(entry, "@") {
+		if strings.HasSuffix(entry, "*") && !strings.HasPrefix(entry, "*") {
 			// Prefix name wildcard (e.g., "keeper-scim-*")
-			var prefix = strings.TrimSuffix(entry, "*")
-			var gl = directory.Groups.List().Customer("my_customer").Query(fmt.Sprintf("name:'%s'", prefix))
-			if groups, err = gl.Do(); err == nil && len(groups.Groups) > 0 {
-				for _, g := range groups.Groups {
-					ge.DebugLogger()(fmt.Sprintf("Found Google group \"%s\" matching prefix \"%s\"", g.Name, prefix))
+			var foundAny = false
+
+			// Try email prefix first
+			var emailQuery = fmt.Sprintf("email=%s", entry)
+			var el = directory.Groups.List().Customer("my_customer").Query(emailQuery)
+			if egroups, err := el.Do(); err == nil && len(egroups.Groups) > 0 {
+				foundAny = true
+				for _, g := range egroups.Groups {
+					ge.DebugLogger()(fmt.Sprintf("Found Google group \"%s\" matching email prefix \"%s\"", g.Name, entry))
 					ge.groups[g.Id] = &Group{
 						Id:   g.Id,
 						Name: g.Name,
 					}
 				}
-			} else {
+			}
+
+			// Try name prefix
+			var nameQuery = fmt.Sprintf("name='%s'", entry)
+			var nl = directory.Groups.List().Customer("my_customer").Query(nameQuery)
+			if ngroups, err := nl.Do(); err == nil && len(ngroups.Groups) > 0 {
+				foundAny = true
+				for _, g := range ngroups.Groups {
+					ge.DebugLogger()(fmt.Sprintf("Found Google group \"%s\" matching name prefix \"%s\"", g.Name, entry))
+					ge.groups[g.Id] = &Group{
+						Id:   g.Id,
+						Name: g.Name,
+					}
+				}
+			}
+
+			if !foundAny {
 				ge.DebugLogger()(fmt.Sprintf("No groups found matching prefix wildcard \"%s\"", entry))
 				ge.loadErrors = true
 			}
 		} else if strings.HasPrefix(entry, "*@") {
 			// Domain email wildcard (e.g., "*@webfx.com")
 			var domain = strings.TrimPrefix(entry, "*@")
-			var gl = directory.Groups.List().Customer("my_customer").Query(fmt.Sprintf("email:'%s'", domain))
-			if groups, err = gl.Do(); err == nil && len(groups.Groups) > 0 {
+			var gl = directory.Groups.List().Domain(domain)
+			if groups, err := gl.Do(); err == nil && len(groups.Groups) > 0 {
 				for _, g := range groups.Groups {
 					ge.DebugLogger()(fmt.Sprintf("Found Google group \"%s\" matching domain \"%s\"", g.Name, domain))
 					ge.groups[g.Id] = &Group{
