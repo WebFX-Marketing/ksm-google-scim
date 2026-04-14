@@ -37,7 +37,7 @@ Read this document: [Google Workspace User and Group Provisioning with Cloud Fun
     }
     ```
   * Save this JSON as a new secret in GCP Secret Manager.
-  * Ensure the Service Account executing the Cloud Function has the `Secret Manager Secret Accessor` role.
+  * **Crucial:** Ensure the Service Account that executes the Cloud Function (usually the Default Compute Service Account, unless you specify otherwise) has the **`Secret Manager Secret Accessor`** role so it can read this payload at runtime.
 
 ### Configuration with `gcloud`
 1. Clone this repository locally
@@ -92,10 +92,23 @@ zip source.zip `find . -name "go.*"`
    ![Copy URL](./images/copy_url.png)
 
 2. Search for `scheduler` and select `Cloud Scheduler`
-3. Click `CREATE JOB`. `15 * * * *` means every hour at 15th minute
+3. Click `CREATE JOB`. 
+   * Name your job and set frequency (e.g., `15 * * * *` means every hour at 15th minute).
+   * **Target type**: HTTP
+   * **URL**: Paste the function URL you copied in step 1.
+   * **HTTP method**: POST
+   * **Auth header**: Add OIDC token
+   * **Service account**: Select a service account to invoke the function.
+   * **Audience**: Paste the function URL again, but **remove any trailing slashes** (e.g., `https://ksm-google-scim-...run.app`).
 
    ![Scheduler Step 1](./images/scheduler_step1.png)
-4. Grant the scheduler access to SCIM function 
+
+4. Grant the scheduler access to the SCIM function
+   * Go to **Cloud Run** in the Google Console.
+   * Click your function name (`ksm-google-scim`).
+   * Navigate to the **Security** tab and click **Add Principal**.
+   * Add the Service Account you selected in the Cloud Scheduler configuration.
+   * Assign the role **`Cloud Run Invoker`** and save.
 
    ![Scheduler Access](./images/scheduler_access.png)
 5. Create Scheduler and check it works by clicking `FORCE RUN`

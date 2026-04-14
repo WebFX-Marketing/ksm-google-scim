@@ -110,7 +110,8 @@ func gcpScimSyncHttp(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		printStatistics(w, syncStat)
 	} else {
-		log.Fatal(err)
+		log.Printf("Sync failed: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
