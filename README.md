@@ -72,10 +72,7 @@ zip source.zip `find . -name "*.go"`
 zip source.zip `find . -name "go.*"`
 ```
 3. Login to Google Console
-4. Create a new function ![Create New Function](./images/create_new_function.png)
-![Create Step 1](./images/create_step1.png)
-![Create Step 2](./images/create_step2.png)
-![Create Step 3](./images/create_step3.png)
+4. Create a new function
    * **If using KSM:**
      * Set `KSM_CONFIG_BASE64` to the content of the KSM configuration file generated at the previous step
      * Set `KSM_RECORD_UID` to configuration record UID created for Commander's `scim push` command
@@ -84,12 +81,10 @@ zip source.zip `find . -name "go.*"`
 5. Click `NEXT`
 6. Set "Entry point" to `GcpScimSyncHttp`
 7. Upload the source code using `source.zip`. "Destination bucket" can be any.
-![Create Step 4](./images/create_step4.png)
 8. Click `DEPLOY`
 
 ### Create Cloud Scheduler with `Google Console`
 1. Find the created function and copy function URL to the clipboard
-   ![Copy URL](./images/copy_url.png)
 
 2. Search for `scheduler` and select `Cloud Scheduler`
 3. Click `CREATE JOB`. 
@@ -101,8 +96,6 @@ zip source.zip `find . -name "go.*"`
    * **Service account**: Select a service account to invoke the function.
    * **Audience**: Paste the function URL again, but **remove any trailing slashes** (e.g., `https://ksm-google-scim-...run.app`).
 
-   ![Scheduler Step 1](./images/scheduler_step1.png)
-
 4. Grant the scheduler access to the SCIM function
    * Go to **Cloud Run** in the Google Console.
    * Click your function name (`ksm-google-scim`).
@@ -110,7 +103,4 @@ zip source.zip `find . -name "go.*"`
    * Add the Service Account you selected in the Cloud Scheduler configuration.
    * Assign the role **`Cloud Run Invoker`** and save.
 
-   ![Scheduler Access](./images/scheduler_access.png)
 5. Create Scheduler and check it works by clicking `FORCE RUN`
-
-   ![Scheduler Run](./images/scheduler_run.png)
