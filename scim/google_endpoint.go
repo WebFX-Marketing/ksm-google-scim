@@ -132,8 +132,10 @@ func (ge *googleEndpoint) Populate() (err error) {
 			// Prefix name wildcard (e.g., "keeper-scim-*")
 			var foundAny = false
 
-			// Try email prefix first
-			var emailQuery = fmt.Sprintf("email=%s", entry)
+			// 1. Try email prefix first (operator: ":")
+			var emailQuery = fmt.Sprintf("email:'%s'", entry)
+			ge.DebugLogger()(fmt.Sprintf("Sending Google API Query: %s", emailQuery))
+
 			var el = directory.Groups.List().Customer("my_customer").Query(emailQuery)
 			if egroups, err := el.Do(); err == nil && len(egroups.Groups) > 0 {
 				foundAny = true
@@ -144,10 +146,14 @@ func (ge *googleEndpoint) Populate() (err error) {
 						Name: g.Name,
 					}
 				}
+			} else if err != nil {
+				ge.DebugLogger()(fmt.Sprintf("Google API error for email query '%s': %v", emailQuery, err))
 			}
 
-			// Try name prefix
-			var nameQuery = fmt.Sprintf("name='%s'", entry)
+			// 2. Try name prefix (operator: ":")
+			var nameQuery = fmt.Sprintf("name:'%s'", entry)
+			ge.DebugLogger()(fmt.Sprintf("Sending Google API Query: %s", nameQuery))
+
 			var nl = directory.Groups.List().Customer("my_customer").Query(nameQuery)
 			if ngroups, err := nl.Do(); err == nil && len(ngroups.Groups) > 0 {
 				foundAny = true
@@ -158,6 +164,8 @@ func (ge *googleEndpoint) Populate() (err error) {
 						Name: g.Name,
 					}
 				}
+			} else if err != nil {
+				ge.DebugLogger()(fmt.Sprintf("Google API error for name query '%s': %v", nameQuery, err))
 			}
 
 			if !foundAny {
@@ -167,6 +175,7 @@ func (ge *googleEndpoint) Populate() (err error) {
 		} else if strings.HasPrefix(entry, "*@") {
 			// Domain email wildcard (e.g., "*@webfx.com")
 			var domain = strings.TrimPrefix(entry, "*@")
+			ge.DebugLogger()(fmt.Sprintf("Sending Google API Query (Domain filter): domain='%s'", domain))
 			var gl = directory.Groups.List().Domain(domain)
 			if groups, err := gl.Do(); err == nil && len(groups.Groups) > 0 {
 				for _, g := range groups.Groups {
@@ -177,6 +186,9 @@ func (ge *googleEndpoint) Populate() (err error) {
 					}
 				}
 			} else {
+				if err != nil {
+					ge.DebugLogger()(fmt.Sprintf("Google API error for domain query '%s': %v", domain, err))
+				}
 				ge.DebugLogger()(fmt.Sprintf("No groups found matching domain wildcard \"%s\"", entry))
 				ge.loadErrors = true
 			}
